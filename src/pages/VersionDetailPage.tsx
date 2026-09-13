@@ -125,10 +125,12 @@ export function VersionDetailPage() {
                       className="text-xs bg-white border border-[var(--aqua-border)] rounded px-2 py-0.5 outline-none"
                     >
                       <option value="PLANNING">Planning</option>
-                      <option value="IN_PROGRESS">In Progress</option>
                       <option value="TESTING">Testing</option>
+                      <option value="MANUFACTURING">Manufacturing</option>
+                      <option value="READY">Ready</option>
+                      <option value="PAUSED">Paused</option>
+                      <option value="BLOCKED">Blocked</option>
                       <option value="COMPLETED">Completed</option>
-                      <option value="CANCELLED">Cancelled</option>
                     </select>
                   ) : (
                     <StatusBadge status={version.status} />
