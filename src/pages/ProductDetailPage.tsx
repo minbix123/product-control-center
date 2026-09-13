@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, GitBranch, Users, Trash2, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { useVersions } from '../hooks/useVersions';
 import { useAssignments } from '../hooks/useAssignments';
 import { useProfiles } from '../hooks/useProfiles';
@@ -21,6 +22,7 @@ export function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
   const { permissions } = useAuth();
+  const { addToast } = useToast();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [productLoading, setProductLoading] = useState(true);
@@ -50,6 +52,10 @@ export function ProductDetailPage() {
     setDeleteLoading(true);
     try {
       await deleteVersion(deleteVersionId);
+      setDeleteVersionId(null);
+    } catch (e: any) {
+      console.error(e);
+      addToast({ type: 'error', title: 'Failed to delete version', message: e?.message });
       setDeleteVersionId(null);
     } finally {
       setDeleteLoading(false);
