@@ -1,26 +1,31 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, FileText, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Plus, FileText, ChevronDown, Trash2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import { useUpdates } from '../hooks/useUpdates';
-import { fetchVersion } from '../lib/api';
+import { fetchVersion, softDeleteVersion, updateVersion } from '../lib/api';
 import { UpdateModal } from '../components/modals/UpdateModal';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { RetroButton } from '../components/ui/RetroButton';
 import { UpdateTimeline } from '../components/ui/UpdateTimeline';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { formatDate, formatRelativeTime } from '../lib/utils';
-import type { Version } from '../types';
+import type { Version, ProductStatus } from '../types';
 
 export function VersionDetailPage() {
   const { productId, versionId } = useParams<{ productId: string; versionId: string }>();
   const navigate = useNavigate();
   const { permissions } = useAuth();
+  const { addToast } = useToast();
 
   const [version, setVersion] = useState<Version | null>(null);
   const [versionLoading, setVersionLoading] = useState(true);
   const [versionError, setVersionError] = useState('');
   const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { updates, loading: uLoading, totalCount, hasMore, loadMore, create } = useUpdates(versionId);
 
@@ -45,6 +50,32 @@ export function VersionDetailPage() {
     setVersion(prev => prev ? { ...prev, status: data.new_status } : prev);
     setShowUpdateModal(false);
     return u;
+  };
+
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!version) return;
+    const newStatus = e.target.value as ProductStatus;
+    try {
+      await updateVersion(version.id, { status: newStatus });
+      setVersion({ ...version, status: newStatus });
+      addToast({ type: 'success', title: 'Status updated' });
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to update status', message: err.message });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!version) return;
+    setIsDeleting(true);
+    try {
+      await softDeleteVersion(version.id);
+      addToast({ type: 'success', title: 'Version deleted' });
+      navigate(`/products/${productId}`);
+    } catch (err: any) {
+      addToast({ type: 'error', title: 'Failed to delete version', message: err.message });
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   if (versionLoading) return <LoadingIndicator fullPage label="Loading version..." />;
@@ -87,7 +118,21 @@ export function VersionDetailPage() {
                   <span className="text-xs text-[var(--aqua-text-muted)] font-normal">({version.product?.name})</span>
                 </div>
                 <div className="flex items-center gap-3 mt-1">
-                  <StatusBadge status={version.status} />
+                  {permissions?.can_edit_versions ? (
+                    <select 
+                      value={version.status} 
+                      onChange={handleStatusChange}
+                      className="text-xs bg-white border border-[var(--aqua-border)] rounded px-2 py-0.5 outline-none"
+                    >
+                      <option value="PLANNING">Planning</option>
+                      <option value="IN_PROGRESS">In Progress</option>
+                      <option value="TESTING">Testing</option>
+                      <option value="COMPLETED">Completed</option>
+                      <option value="CANCELLED">Cancelled</option>
+                    </select>
+                  ) : (
+                    <StatusBadge status={version.status} />
+                  )}
                   <span className="text-xs text-[var(--aqua-text-muted)]">Updated {formatRelativeTime(version.updated_at)}</span>
                 </div>
               </div>
@@ -97,6 +142,15 @@ export function VersionDetailPage() {
                 <RetroButton variant="primary" size="sm" onClick={() => setShowUpdateModal(true)} icon={Plus}>
                   Log Update
                 </RetroButton>
+              )}
+              {permissions?.can_delete_versions && (
+                <button
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="p-1.5 hover:bg-red-50 text-red-400 hover:text-red-600 rounded transition-colors"
+                  title="Delete version"
+                >
+                  <Trash2 size={16} />
+                </button>
               )}
             </div>
           </div>
@@ -147,6 +201,19 @@ export function VersionDetailPage() {
           versionId={version.id}
           versionName={version.name}
           currentStatus={version.status}
+        />
+      )}
+      
+      {/* Delete Confirm Modal */}
+      {version && (
+        <ConfirmDialog
+          isOpen={showDeleteConfirm}
+          onClose={() => setShowDeleteConfirm(false)}
+          onConfirm={handleDelete}
+          title="Delete Version"
+          message={`Are you sure you want to delete "${version.name}"? This action cannot be undone.`}
+          confirmLabel="Delete Version"
+          loading={isDeleting}
         />
       )}
     </div>

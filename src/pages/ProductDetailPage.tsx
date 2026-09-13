@@ -162,10 +162,10 @@ export function ProductDetailPage() {
                 : undefined}
             />
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {versions.map(version => (
-                <div key={version.id} className="aqua-panel aqua-panel-hover" onClick={() => navigate(`/products/${productId}/versions/${version.id}`)}>
-                  <div className="p-4 flex items-start justify-between gap-3">
+                <div key={version.id} className="aqua-panel aqua-panel-hover h-full flex flex-col" onClick={() => navigate(`/products/${productId}/versions/${version.id}`)}>
+                  <div className="p-4 flex items-start justify-between gap-3 flex-1">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2.5 mb-1">
                         <span className="text-sm font-bold text-[var(--aqua-text)]">{version.name}</span>

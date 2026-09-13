@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { fetchVersionsByProduct, createVersion, softDeleteVersion } from '../lib/api';
+import { fetchVersionsByProduct, createVersion, softDeleteVersion, updateVersion } from '../lib/api';
 import { useToast } from '../context/ToastContext';
 import { useRealtimeSubscription } from '../context/RealtimeContext';
 import type { Version, ProductStatus } from '../types';
@@ -42,5 +42,12 @@ export function useVersions(productId: string | undefined) {
     await refetch();
   };
 
-  return { versions, loading, error, refetch, create, softDelete };
+  const update = async (id: string, data: Partial<Version>) => {
+    const version = await updateVersion(id, data);
+    addToast({ type: 'success', title: 'Version updated' });
+    await refetch();
+    return version;
+  };
+
+  return { versions, loading, error, refetch, create, update, softDelete };
 }

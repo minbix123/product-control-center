@@ -246,6 +246,21 @@ export async function createVersion(input: {
   return data as Version;
 }
 
+export async function updateVersion(id: string, updates: Partial<Version>): Promise<Version> {
+  const { data, error } = await supabase
+    .from('versions')
+    .update(updates)
+    .eq('id', id)
+    .select(`
+      *,
+      creator:profiles!versions_created_by_fkey(id, name, email, avatar_url)
+    `)
+    .single();
+
+  if (error) handleError(error, 'Failed to update version');
+  return data as Version;
+}
+
 export async function softDeleteVersion(id: string): Promise<void> {
   const { error } = await supabase
     .from('versions')
@@ -583,19 +598,19 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
   // Search updates
   const { data: updates } = await supabase
     .from('updates')
-    .select('id, version_id, title, description, new_status')
+    .select('id, version_id, title, description, new_status, version:versions(product_id)')
     .or(`title.ilike.${term},description.ilike.${term}`)
     .limit(6);
 
   if (updates) {
-    for (const u of updates) {
+    for (const u of updates as any[]) {
       results.push({
         type: 'update',
         id: u.id,
         title: u.title,
         subtitle: u.description || 'No description',
         status: u.new_status,
-        url: '#',
+        url: `/products/${u.version?.product_id}/versions/${u.version_id}`,
       });
     }
   }
