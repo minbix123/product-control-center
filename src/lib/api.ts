@@ -41,10 +41,11 @@ export function clearProfileCache() {
   _cachedProfileId = null;
 }
 
-function handleError(error: { message?: string; code?: string } | null, fallback: string): never {
+function handleError(error: { message?: string; code?: string; details?: string; hint?: string } | null, fallback: string): never {
+  console.error('[API Error]:', error);
   const msg = error?.message || fallback;
   if (error?.code === '23505') throw new Error('A record with that name already exists.');
-  if (error?.code === '42501') throw new Error('You do not have permission to perform this action.');
+  if (error?.code === '42501') throw new Error(`Permission denied: ${msg} (Details: ${error.details || 'none'})`);
   if (error?.code === '23503') throw new Error('Referenced record not found.');
   throw new Error(msg);
 }
