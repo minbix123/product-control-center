@@ -6,7 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { useVersions } from '../hooks/useVersions';
 import { useAssignments } from '../hooks/useAssignments';
 import { useProfiles } from '../hooks/useProfiles';
-import { fetchProduct } from '../lib/api';
+import { fetchProduct, updateProduct } from '../lib/api';
 import { VersionModal } from '../components/modals/VersionModal';
 import { AssignmentModal } from '../components/modals/AssignmentModal';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
@@ -16,12 +16,12 @@ import { UserAvatar } from '../components/ui/UserAvatar';
 import { EmptyState } from '../components/ui/EmptyState';
 import { LoadingIndicator } from '../components/ui/LoadingIndicator';
 import { formatRelativeTime, formatDate } from '../lib/utils';
-import type { Product } from '../types';
+import type { Product, ProductStatus } from '../types';
 
 export function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const navigate = useNavigate();
-  const { permissions } = useAuth();
+  const { permissions, isDev } = useAuth();
   const { addToast } = useToast();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -46,6 +46,23 @@ export function ProductDetailPage() {
       .catch(e => setProductError(e.message))
       .finally(() => setProductLoading(false));
   }, [productId]);
+
+  const handleStatusChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    if (!product) return;
+    const oldStatus = product.status;
+    const newStatus = e.target.value as ProductStatus;
+    
+    setProduct({ ...product, status: newStatus });
+    
+    try {
+      await updateProduct(product.id, { status: newStatus });
+      addToast({ type: 'success', title: 'Product status updated' });
+    } catch (err: any) {
+      console.error(err);
+      addToast({ type: 'error', title: 'Failed to update status', message: err?.message });
+      setProduct({ ...product, status: oldStatus });
+    }
+  };
 
   const handleDeleteVersion = async () => {
     if (!deleteVersionId) return;
@@ -109,7 +126,23 @@ export function ProductDetailPage() {
               <div>
                 <h1 className="text-xl font-bold text-[var(--aqua-text)] m-0">{product.name}</h1>
                 <div className="flex items-center gap-3 mt-1">
-                  <StatusBadge status={product.status} />
+                  {permissions?.can_edit_products ? (
+                    <select 
+                      value={product.status} 
+                      onChange={handleStatusChange}
+                      className="text-xs bg-white border border-[var(--aqua-border)] rounded px-2 py-0.5 outline-none"
+                    >
+                      <option value="PLANNING">Planning</option>
+                      <option value="TESTING">Testing</option>
+                      <option value="MANUFACTURING">Manufacturing</option>
+                      <option value="READY">Ready</option>
+                      <option value="PAUSED">Paused</option>
+                      <option value="BLOCKED">Blocked</option>
+                      <option value="COMPLETED">Completed</option>
+                    </select>
+                  ) : (
+                    <StatusBadge status={product.status} />
+                  )}
                   <span className="text-xs text-[var(--aqua-text-muted)]">Updated {formatRelativeTime(product.updated_at)}</span>
                 </div>
               </div>
@@ -121,7 +154,7 @@ export function ProductDetailPage() {
                   New Version
                 </RetroButton>
               )}
-              {permissions?.can_manage_assignments && (
+              {isDev && (
                 <RetroButton variant="secondary" size="sm" onClick={() => setShowAssignModal(true)} icon={Users}>
                   Assign
                 </RetroButton>
@@ -164,22 +197,26 @@ export function ProductDetailPage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {versions.map(version => (
-                <div key={version.id} className="aqua-panel aqua-panel-hover h-full flex flex-col" onClick={() => navigate(`/products/${productId}/versions/${version.id}`)}>
+                <div key={version.id} className="aqua-panel aqua-panel-hover flex flex-col" style={{ minHeight: '120px' }} onClick={() => navigate(`/products/${productId}/versions/${version.id}`)}>
                   <div className="p-4 flex items-start justify-between gap-3 flex-1">
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 flex flex-col">
                       <div className="flex items-center gap-2.5 mb-1">
                         <span className="text-sm font-bold text-[var(--aqua-text)]">{version.name}</span>
                         <StatusBadge status={version.status} size="sm" />
                       </div>
-                      {version.description && (
-                        <p className="text-xs text-[var(--aqua-text-muted)] m-0 mb-2 line-clamp-1">{version.description}</p>
-                      )}
-                      {version.latest_update && (
-                        <div className="text-[10px] text-[var(--aqua-text-muted)] flex items-center gap-1.5">
-                          <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
-                          Latest: {version.latest_update.title} — {formatRelativeTime(version.latest_update.created_at)}
-                        </div>
-                      )}
+                      <p className="text-xs text-[var(--aqua-text-muted)] m-0 mb-2 line-clamp-1 flex-1">
+                        {version.description || '\u00A0'}
+                      </p>
+                      <div className="text-[10px] text-[var(--aqua-text-muted)] flex items-center gap-1.5 mt-auto">
+                        {version.latest_update ? (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+                            Latest: {version.latest_update.title} — {formatRelativeTime(version.latest_update.created_at)}
+                          </>
+                        ) : (
+                          <span className="italic">No updates yet</span>
+                        )}
+                      </div>
                     </div>
                     {permissions?.can_delete_versions && (
                       <button
@@ -220,7 +257,7 @@ export function ProductDetailPage() {
                     <UserAvatar profile={assignment.user} size="sm" showName showRole />
                   )}
                   <div className="flex-1 min-w-0" />
-                  {permissions?.can_manage_assignments && (
+                  {isDev && (
                     <button
                       onClick={() => setRemoveAssignId(assignment.id)}
                       className="p-1 hover:bg-red-50 text-red-400 rounded flex-shrink-0"

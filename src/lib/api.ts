@@ -150,11 +150,7 @@ export async function updateProduct(
 }
 
 export async function softDeleteProduct(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('products')
-    .update({ is_deleted: true })
-    .eq('id', id);
-
+  const { error } = await supabase.rpc('soft_delete_product', { product_id: id });
   if (error) handleError(error, 'Failed to delete product');
 }
 
@@ -263,11 +259,7 @@ export async function updateVersion(id: string, updates: Partial<Version>): Prom
 }
 
 export async function softDeleteVersion(id: string): Promise<void> {
-  const { error } = await supabase
-    .from('versions')
-    .update({ is_deleted: true })
-    .eq('id', id);
-
+  const { error } = await supabase.rpc('soft_delete_version', { version_id: id });
   if (error) handleError(error, 'Failed to delete version');
 }
 
@@ -611,7 +603,7 @@ export async function globalSearch(query: string): Promise<SearchResult[]> {
         title: u.title,
         subtitle: u.description || 'No description',
         status: u.new_status,
-        url: `/products/${u.version?.product_id}/versions/${u.version_id}`,
+        url: `/products/${Array.isArray(u.version) ? u.version[0]?.product_id : (u.version as any)?.product_id}/versions/${u.version_id}`,
       });
     }
   }
