@@ -33,6 +33,14 @@ export function ProductsPage() {
     setSearch(searchInput);
   };
 
+  const handleStatusChange = async (product: Product, newStatus: ProductStatus) => {
+    try {
+      await update(product.id, { status: newStatus });
+    } catch (e: any) {
+      console.error(e);
+    }
+  };
+
   const handleDelete = async () => {
     if (!deleteProduct) return;
     setDeleteLoading(true);
@@ -112,9 +120,25 @@ export function ProductsPage() {
                     style={{ background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)' }}>
                     {product.name[0]}
                   </div>
-                  <div className="min-w-0">
+                  <div className="min-w-0" onClick={e => permissions?.can_edit_products && e.stopPropagation()}>
                     <p className="text-sm font-bold text-[var(--aqua-text)] m-0 truncate">{product.name}</p>
-                    <StatusBadge status={product.status} size="sm" />
+                    {permissions?.can_edit_products ? (
+                      <select 
+                        value={product.status} 
+                        onChange={e => handleStatusChange(product, e.target.value as ProductStatus)}
+                        className="text-[10px] bg-white border border-[var(--aqua-border)] rounded px-1.5 py-0.5 outline-none mt-0.5"
+                      >
+                        <option value="PLANNING">Planning</option>
+                        <option value="TESTING">Testing</option>
+                        <option value="MANUFACTURING">Manufacturing</option>
+                        <option value="READY">Ready</option>
+                        <option value="PAUSED">Paused</option>
+                        <option value="BLOCKED">Blocked</option>
+                        <option value="COMPLETED">Completed</option>
+                      </select>
+                    ) : (
+                      <StatusBadge status={product.status} size="sm" />
+                    )}
                   </div>
                 </div>
                 {(permissions?.can_edit_products || permissions?.can_delete_products) && (
